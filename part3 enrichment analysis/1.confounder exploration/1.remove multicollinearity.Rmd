@@ -1,0 +1,188 @@
+---
+title: "Untitled"
+output: html_document
+date: '2024-03-15'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Remove Multicollinearity
+
+read original data
+
+```{r}
+#remember to chance the path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+library(readxl)
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+input complete dataset
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+dataset_im <- read.table("dataset_output.txt",header=T,sep = "\t",row.names = NULL)
+round_dataset <- as.data.frame(lapply(dataset_im, function(x) round(x,digits = 4)))
+```
+
+add ID
+
+```{r}
+round_dataset <- cbind(data$cell_id,round_dataset)
+colnames(round_dataset)[1] <- "cell_id"
+```
+
+read cell proportion
+
+```{r}
+setwd("D:\\Thesis\\data\\result_tpm")
+cell_pro <- read.table("CIBERSORTx_Adjusted.txt",header=T,sep = "\t",row.names = NULL)
+cell_pro <- cell_pro[,1:21]
+colnames(cell_pro)[1] <- "cell_id"
+```
+
+add cell proportion into round_case
+
+```{r}
+round_dataset <- merge(round_dataset,cell_pro,by="cell_id")
+rownames(round_dataset) <- round_dataset$cell_id
+round_dataset <- round_dataset[,-1]
+```
+
+**see variable type**
+
+```{r}
+#5 single, 226 binary, 157 category, 60 numeric
+drop_new <- c()
+bi <- c()
+category <- c()
+numeric <- c()
+unique <- c()
+for (i in 1:ncol(round_dataset))
+{
+  num <- length(unique(round_dataset[,i]))
+  unique <- c(unique,num)
+  if (num==1)
+  {
+    drop_new <- c(drop_new,colnames(round_dataset)[i])
+  }
+  else if (num==2)               #bi
+  {
+    bi <- c(bi,colnames(round_dataset)[i])
+  }
+  else if (num<10)               #category
+  {
+    category <- c(category,colnames(round_dataset)[i])
+  }
+  else               #num
+  {
+    numeric<- c(numeric,colnames(round_dataset)[i])
+  }
+}
+```
+
+```{r}
+round_dataset <- round_dataset[,!colnames(round_dataset) %in% drop_new]
+
+#place category variables and numeric variables in order
+order <- c(bi,category,numeric)
+round_dataset <- round_dataset[,order]
+```
+
+#### Multicollinearity(category+numeric variables)
+
+```{r}
+#total 217 variables
+data_n <- round_dataset[,numeric]
+data_cate <- round_dataset[,category]
+data_n <- cbind(data_cate,data_n)
+spearman_correlation <- cor(data_n, method = "spearman")
+distance_matrix <- as.dist(1 - abs(spearman_correlation))
+hc <- hclust(distance_matrix)
+plot(hc,labels=F)
+groups <- cutree(hc, h = 0.3)
+#table(groups)
+#divide into 140 groups
+va_part1 <- c()
+for (i in 1:140)
+{
+  va_part1 <- c(va_part1,names(groups[groups==i][1]))
+}
+```
+
+```{r}
+cate1 <- va_part1[va_part1%in%category]
+num1 <- va_part1[va_part1%in%numeric]
+va_part1 <- c(num1,cate1)
+```
+
+#### Multicollinearity(binary variables)
+
+```{r}
+phi_cor <- function(data)
+{
+  library(psych)
+  length= ncol(data)
+  empty_matrix <- matrix(ncol = length, nrow = length)
+  cor_frame <- data.frame(empty_matrix)
+  colnames(cor_frame) <- colnames(data)
+  rownames(cor_frame) <- colnames(data)
+  for (i in 1:length)
+  {
+    for (j in i:length)
+    {
+      cor <- phi(table(data[,i],data[,j]))
+      cor_frame[i,j]=cor
+      cor_frame[j,i]=cor
+    }
+  }
+  return(cor_frame)
+}
+```
+
+```{r}
+#total of 226 variables
+library(misty)
+data_b <- round_dataset[,bi]
+phi_correlation <- phi_cor(data_b)
+distance_matrix <- as.dist(1 - abs(phi_correlation))
+hc <- hclust(distance_matrix)
+plot(hc,labels=F)
+groups <- cutree(hc, h = 0.3)
+#table(groups)
+#172 variables remain
+va_part2 <- c()
+for (i in 1:172)
+{
+  va_part2 <- c(va_part2,names(groups[groups==i][1]))
+}
+```
+
+#### Get a new dataset without Multicollinearity
+
+```{r}
+new_data <- round_dataset[,c(va_part1,va_part2)]
+setwd("D:\\Thesis\\WORKSPACE2024\\DE")
+write.table(new_data,file = "data_no_multicol.txt",quote = F,row.names = T,sep="\t")
+```

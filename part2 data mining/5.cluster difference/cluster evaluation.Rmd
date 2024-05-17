@@ -1,0 +1,205 @@
+---
+title: "Cluster Evaluation"
+output: html_document
+date: '2024-01-23'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cluster Evaluation
+
+read original data
+
+```{r warning=FALSE}
+#remember to change the path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+library(readxl)
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+input case dataset
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+case_im <- read.table("case_output.txt",header=T,sep = "\t",row.names = NULL)
+round_case <- as.data.frame(lapply(case_im, function(x) round(x,digits = 4)))
+```
+
+add ID
+
+```{r}
+round_case <- cbind(case$cell_id,round_case)
+colnames(round_case)[1] <- "cell_id"
+```
+
+read cell proportion
+
+```{r}
+setwd("D:\\Thesis\\data\\result_tpm")
+cell_pro <- read.table("CIBERSORTx_Adjusted.txt",header=T,sep = "\t",row.names = NULL)
+cell_pro <- cell_pro[,1:21]
+colnames(cell_pro)[1] <- "cell_id"
+```
+
+add cell proportion into round_case
+
+```{r}
+round_case <- merge(round_case,cell_pro,by="cell_id")
+round_case <- round_case[,-1]
+```
+
+**see variable type**
+
+```{r}
+#5 single, 241 binary, 177 category, 96 numeric
+drop_new <- c()
+bi <- c()
+category <- c()
+numeric <- c()
+unique <- c()
+for (i in 1:ncol(round_case))
+{
+  num <- length(unique(round_case[,i]))
+  unique <- c(unique,num)
+  if (num==1)
+  {
+    drop_new <- c(drop_new,colnames(round_case)[i])
+  }
+  else if (num==2)               #bi
+  {
+    bi <- c(bi,colnames(round_case)[i])
+  }
+  else if (num<10)               #category
+  {
+    category <- c(category,colnames(round_case)[i])
+  }
+  else               #num
+  {
+    numeric<- c(numeric,colnames(round_case)[i])
+  }
+}
+```
+
+read cluster data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+```
+
+```{r}
+round_case <- round_case[cluster_assignment!=3,]
+cluster_assignment <- cluster_assignment[cluster_assignment!=3]
+```
+
+##### Chi-Square test
+
+```{r warning=FALSE}
+#total of 418 variables
+cate <- round_case[,c(bi,category)]
+cate_c1 <- cate[cluster_assignment==1,]
+cate_c2 <- cate[cluster_assignment==2,]
+cate_c4 <- cate[cluster_assignment==4,]
+cate_c5 <- cate[cluster_assignment==5,]
+
+pvalue <- c()
+
+for (i in 1:ncol(cate))
+{
+ 
+  tableR <- c()
+  result <- c()
+  result_new <- c()
+  
+  tableR <- matrix(ncol = length(unique(cate[,i])), nrow = 4)
+  tableR <- data.frame(tableR)
+
+  for (j in 1:length(unique(cate[,i])))
+  {
+    value = unique(cate[,i])[j]
+    tableR[1,j] = length(cate_c1[,i][cate_c1[,i]==value])
+    tableR[2,j] = length(cate_c2[,i][cate_c2[,i]==value])
+    tableR[3,j] = length(cate_c4[,i][cate_c4[,i]==value])
+    tableR[4,j] = length(cate_c5[,i][cate_c5[,i]==value])
+  }
+
+  result <- chisq.test(tableR)
+  if (min(result$expected)<5)
+  {
+    result_new <- fisher.test(tableR,simulate.p.value = TRUE)
+    pvalue <- c(pvalue,result_new[["p.value"]])
+  }
+  
+  else
+  {
+    pvalue <- c(pvalue,result[["p.value"]])
+  }
+}
+
+#140 have FDA <0.05
+adjusted_p_values <- p.adjust(pvalue, method = "BH")
+
+
+```
+
+##### **One-way ANOVA**
+
+```{r}
+cluster_assignment <- as.factor(cluster_assignment)
+```
+
+```{r}
+#total of 96
+num <- round_case[,numeric]
+
+#one.way <- aov(num[[1]] ~ cluster_assignment)
+#result <- summary(one.way)
+#pvalue <- result[[1]][["Pr(>F)"]][1]
+
+pvalue <- c()
+for (i in 1:ncol(num))
+{
+  one.way <- c()
+  result <- c()
+  p <- c()
+  one.way <- aov(num[[i]] ~ cluster_assignment)
+  result <- summary(one.way)
+  p <- result[[1]][["Pr(>F)"]][1]
+  pvalue <- c(pvalue,p)
+}
+#52 have FDA <0.05
+adjusted_p_values <- p.adjust(pvalue, method = "BH")
+
+
+
+#numeric[80:96]
+#adjusted_p_values[80:96]
+#CD16_positive_monocyte
+#CD8_positive_alpha_beta_T_cell  ?
+#macrophage_m0
+#macrophage_m2
+#naive_B_cell
+```
+
+# 

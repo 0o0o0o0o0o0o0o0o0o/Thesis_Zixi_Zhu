@@ -1,3 +1,7 @@
+#This script conduct different expression gene analysis in HPC
+
+
+
 rm(list=ls())
 setwd("/panfs/compbio/users/zzhu244/volumes")
 matrix1 <- read.table("matrix_counts1.txt",header = T)
@@ -21,13 +25,14 @@ spname <- colnames(matrix)
 spname <- spname[-1]
 spname <- as.data.frame(spname)
 group <- merge(spname,data_index,by.x="spname",by.y="id")
+group <- group[group$cluster==5|group$cluster==6,]
 name <- group$spname
 rownames(group) <- group$spname
 group$spname <- as.factor(group$spname)
 group$cluster <- as.factor(group$cluster)
 group$site <- as.factor(group$site)
 
-group$condition <- ifelse(group$cluster=="0"|group$cluster=="6","control","case")
+group$condition <- ifelse(group$cluster=="6","control","case")
 group$condition <- as.factor(group$condition)
 
 #delete duplicate
@@ -37,6 +42,7 @@ all(rownames(group) %in% colnames(exprSet))
 all(rownames(group) == colnames(exprSet))
 
 condition <- group$condition
+
 
 #Gene-level counts normalize
 
@@ -57,6 +63,8 @@ gExpr <- calcNormFactors(gExpr)
 
 ########################dataset
 dataset <- read.table("data_no_multicol.txt",header=T,sep = "\t")
+
+dataset <- dataset[rownames(dataset)%in%rownames(group),]
 
 all(rownames(dataset) %in% colnames(exprSet))
 all(rownames(dataset) == colnames(exprSet))
@@ -92,6 +100,7 @@ dataset$myeloid_dendritic_cell <- scale_norm(dataset$myeloid_dendritic_cell)
 dataset$condition <- condition
 dataset$condition <- as.factor(dataset$condition)
 
+
 # The variable to be tested must be a fixed effect
 form <- ~ condition + neutrophil+eosinophil+CD16_positive_monocyte+ plasmacytoid_dendritic_cell+ macrophage_m2+ gamma_delta_T_cell+ CD14_positive_monocyte
 
@@ -107,6 +116,7 @@ fitmm <- eBayes(fitmm)
 
 head(fitmm$design, 3)
 
+
 top30 <- topTable(fitmm, coef = "conditioncontrol", number = 30,sort.by = "P")
 top60 <- topTable(fitmm, coef = "conditioncontrol", number = 60,sort.by = "P")
 top100 <- topTable(fitmm, coef = "conditioncontrol", number = 100,sort.by = "P")
@@ -115,8 +125,8 @@ top300 <- topTable(fitmm, coef = "conditioncontrol", number = 300,sort.by = "P")
 top500 <- topTable(fitmm, coef = "conditioncontrol", number = 500,sort.by = "P")
 
 
-
-
+all <- topTable(fitmm, coef = "conditioncontrol", number = 12424,sort.by = "P")
+dif_gene <- top500[top500$adj.P.Val<0.05,]
 
 ######################GSEA
 library(clusterProfiler)
@@ -125,28 +135,8 @@ library(ggplot2)
 
 library(org.Hs.eg.db)
 
-#########top30
-df <- top30
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- rownames(df)
-gene_list<-na.omit(original_gene_list)
-gene_list = sort(gene_list, decreasing = TRUE)
-
-#gsea
-gse <- gseGO(geneList=gene_list, 
-             ont ="BP", 
-             keyType = "SYMBOL", 
-             verbose = TRUE, 
-			 pvalueCutoff = 0.1,
-             OrgDb = org.Hs.eg.db, 
-             pAdjustMethod = "none")
-
-
-#########top60
-df <- top60
+#########all
+df <- all
 # we want the log2 fold change 
 original_gene_list <- df$logFC
 
@@ -161,116 +151,79 @@ gse <- gseGO(geneList=gene_list,
              keyType = "SYMBOL", 
              verbose = TRUE, 
 			 pvalueCutoff = 0.05,
-             OrgDb = org.Hs.eg.db, 
-             pAdjustMethod = "none")
-
-
-#########top100
-df <- top100
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- rownames(df)
-gene_list<-na.omit(original_gene_list)
-gene_list = sort(gene_list, decreasing = TRUE)
-
-#gsea
-gse <- gseGO(geneList=gene_list, 
-             ont ="BP", 
-             keyType = "SYMBOL", 
-             verbose = TRUE, 
-			 pvalueCutoff = 0.05,
-             OrgDb = org.Hs.eg.db, 
-             pAdjustMethod = "none")
-			 
-			 
-			 
-			 
-
-#########top150
-df <- top150
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- rownames(df)
-gene_list<-na.omit(original_gene_list)
-gene_list = sort(gene_list, decreasing = TRUE)
-
-#gsea
-gse <- gseGO(geneList=gene_list, 
-             ont ="BP", 
-             keyType = "SYMBOL", 
-             verbose = TRUE, 
-			 pvalueCutoff = 0.05,
-             OrgDb = org.Hs.eg.db, 
-             pAdjustMethod = "none")
-
-
-
-#########top300
-df <- top300
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- rownames(df)
-gene_list<-na.omit(original_gene_list)
-gene_list = sort(gene_list, decreasing = TRUE)
-
-#gsea
-gse <- gseGO(geneList=gene_list, 
-             ont ="BP", 
-             keyType = "SYMBOL", 
-             verbose = TRUE, 
-			 pvalueCutoff = 0.05,
-             OrgDb = org.Hs.eg.db, 
-             pAdjustMethod = "none")
-			 
-			 
-
-
-#########top500
-df <- top500
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- rownames(df)
-gene_list<-na.omit(original_gene_list)
-gene_list = sort(gene_list, decreasing = TRUE)
-
-#gsea
-gse <- gseGO(geneList=gene_list, 
-             ont ="BP", 
-             keyType = "SYMBOL", 
-             verbose = TRUE, 
-			 pvalueCutoff = 0.1,
              OrgDb = org.Hs.eg.db, 
              pAdjustMethod = "BH")
 
 
 
+#dotplot
+pdf("GSEA_dotplot.pdf", width = 10, height = 8)
+require(DOSE)
+dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
+dev.off()
+
+
+#enrichment map
+pdf("GSEA_map.pdf", width = 20, height = 16)
+temp <- pairwise_termsim(gse)
+emapplot(temp)
+dev.off()
+
+
+
+#GSEA
+pdf("GSEA1.pdf")
+gseaplot(gse, by = "all", title = gse$Description[1], geneSetID = 1)
+dev.off()
+
+
+#######################Go enrichment
+#get the ENTREZID for the next analysis
+sig.gene= dif_gene
+head(sig.gene)
+gene<-rownames(sig.gene)
+head(gene)
+gene.df<-bitr(gene, fromType = "SYMBOL", 
+ toType = c("ENSEMBL","ENTREZID"),
+ OrgDb = org.Hs.eg.db)
+head(gene.df)
 
 
 
 
 
+ego_bp<-enrichGO(gene = gene.df$ENSEMBL,
+ OrgDb = org.Hs.eg.db,
+ keyType = 'ENSEMBL',
+ ont = "BP",
+ pAdjustMethod = "BH",
+ pvalueCutoff = 0.05,
+ qvalueCutoff = 0.05)
+ 
+pdf("GO_BP.pdf")
+barplot(ego_bp,showCategory = 4,title="The GO_BP enrichment analysis of all DEGs 
+")
+dev.off()
+
+pdf("GO_BP_dotplot.pdf")
+dotplot(ego_bp, showCategory = 4, title = "Enriched Pathways")
+dev.off()
+
+pdf("GO_map.pdf", width = 20, height = 16)
+temp <- pairwise_termsim(ego_bp)
+emapplot(temp)
+dev.off()
 
 
+####################KEGG
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+kegg<-enrichKEGG(gene = gene.df$ENTREZID,pvalueCutoff = 0.05)
+ 
+pdf("KEGG.pdf")
+barplot(kegg,showCategory = 1,title="The kegg enrichment analysis of all DEGs 
+")
+dev.off()
+ 
+ 
+ 
+ 

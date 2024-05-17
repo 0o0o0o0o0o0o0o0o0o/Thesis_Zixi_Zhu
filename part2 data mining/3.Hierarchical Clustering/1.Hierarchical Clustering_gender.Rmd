@@ -1,0 +1,167 @@
+---
+title: "Untitled"
+output:
+  pdf_document: default
+  html_document: default
+date: '2024-02-05'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Hierarchical Clustering
+
+read case
+
+```{r}
+#remember to change the path
+rm(list=ls())
+library(rvest)
+library(tidyverse)
+library(readxl)
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+save gender
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+gender <- case$gender
+save(gender,file = "gender.RData")
+```
+
+read Encoder
+
+```{r warning=FALSE}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+library(umap)
+library(FactoMineR)
+library(factoextra)
+rm(list=ls())
+encode <- read.table("case_encode.txt",header=T,sep = "\t",row.names = NULL)
+round_encode <- as.data.frame(lapply(encode, function(x) round(x,digits = 4)))
+```
+
+Scaling
+
+```{r}
+round_encode <- as.data.frame(scale(round_encode))
+```
+
+read gender
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("gender.RData")
+```
+
+divide into female dataset and male datset
+
+```{r}
+female_encode <- round_encode[gender=="F",]
+male_encode <- round_encode[gender=="M",]
+```
+
+### Female
+
+apply euclidean distance method to construct distance matrix
+
+```{r}
+dist_mat_f <- dist(female_encode, method = 'euclidean')
+```
+
+use Complete-linkage linkage method
+
+```{r}
+hclust_avg_f <- hclust(dist_mat_f, method = 'complete')
+plot(hclust_avg_f,labels=FALSE)
+```
+
+explore the best clustering number
+
+```{r}
+fviz_nbclust(female_encode, hcut, method = "wss")+
+  geom_vline(xintercept = 2, linetype = 2)
+```
+
+divide into 2 clusters
+
+```{r}
+plot(hclust_avg_f,labels=FALSE)
+cluster_f <- rect.hclust(hclust_avg_f , k = 2, border = 2:6)
+```
+
+### Male
+
+apply euclidean distance method to construct distance matrix
+
+```{r}
+dist_mat_m <- dist(male_encode, method = 'euclidean')
+```
+
+use Complete-linkage linkage method
+
+```{r}
+hclust_avg_m <- hclust(dist_mat_m, method = 'complete')
+plot(hclust_avg_m,labels=FALSE)
+```
+
+explore the best clustering number
+
+```{r}
+fviz_nbclust(male_encode, hcut, method = "wss")+
+  geom_vline(xintercept = 2, linetype = 2)
+```
+
+divide into 2 clusters
+
+```{r}
+plot(hclust_avg_m,labels=FALSE)
+cluster_m <- rect.hclust(hclust_avg_m , k = 3, border = 2:6)
+```
+
+### Save Cluster
+
+cluster index
+
+```{r}
+cluster1_index <- as.numeric(names(cluster_f[[1]]))
+cluster2_index <- as.numeric(names(cluster_f[[2]]))
+cluster3_index <- as.numeric(names(cluster_m[[1]]))
+cluster4_index <- as.numeric(names(cluster_m[[2]]))
+cluster5_index <- as.numeric(names(cluster_m[[3]]))
+```
+
+cluster assignment
+
+```{r}
+cluster_assignment <- c()
+cluster_assignment[cluster1_index] <- rep(1,238)
+cluster_assignment[cluster2_index] <- rep(2,121)
+cluster_assignment[cluster3_index] <- rep(3,1)
+cluster_assignment[cluster4_index] <- rep(4,71)
+cluster_assignment[cluster5_index] <- rep(5,31)
+```
+
+save cluster assignment
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+save(cluster_assignment,file = "cluster_gender.RData")
+```

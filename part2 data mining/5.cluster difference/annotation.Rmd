@@ -1,0 +1,161 @@
+---
+title: "Untitled"
+output: html_document
+date: '2024-02-21'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Cluster Annotation
+
+read original dataset
+
+```{r}
+#remember to change the path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+#change to your own pathways
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+
+#read and merge three clinical data set
+
+library("readxl")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+read required data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+
+case_allgender <- case[cluster_assignment!=3,]
+result_allgender <- as.factor(cluster_assignment[cluster_assignment!=3])
+
+case_female <- case[cluster_assignment==1|cluster_assignment==2,]
+result_female <- as.factor(cluster_assignment[cluster_assignment==1|cluster_assignment==2])
+
+case_male <- case[cluster_assignment==4|cluster_assignment==5,]
+result_male <- as.factor(cluster_assignment[cluster_assignment==4|cluster_assignment==5])
+
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+case_fill <- read.table("CELL_case_output.txt",header=T,sep = "\t",row.names = NULL)
+```
+
+draw a table for female
+
+```{r}
+library(table1)
+case_female$GAD_TOT<- as.numeric(case_female$GAD_TOT)
+case_female$AGE_ONSET_MDD<- as.numeric(case_female$AGE_ONSET_MDD)
+
+table1(~GAD_4+GAD_3+PHQ_7+Q4_Currently_Smoke+PHQ_4+GAD_2+GAD_TOT+Smokebefore+AGE_ONSET_MDD+PHQ_3+DEATH_WORST|result_female,data = case_female)
+```
+
+draw a table for male
+
+```{r}
+library(table1)
+case_male$`Factor(4)`<- as.numeric(case_male$`Factor(4)`)
+case_male$Bmi_Current<- as.numeric(case_male$Bmi_Current)
+
+label(case_male$`Factor(4)`) <- "Factor4:Anxiety (lifetime panic, social phobia)"
+label(case_male$Halluc_Level) <- "Hallucinogens_Level"
+
+table1(~PHQ_7+STIM_LEVEL+Alcohol_Abuse+Neglect+PPWORK+Alc_Dependence+Bmi_Current+Emot_Abuse+`Factor(4)`+Halluc_Level|result_male,data = case_male)
+```
+
+draw a table for all gender
+
+```{r}
+library(table1)
+
+case_allgender$Qa_height_feet<- as.numeric( case_allgender$Qa_height_feet)
+case_allgender$`Qb+height_inches`<- as.numeric(case_allgender$`Qb+height_inches`)
+case_allgender$GAD_TOT<- as.numeric(case_allgender$GAD_TOT)
+
+
+
+table1(~gender+GAD_4+Qa_height_feet+GAD_3+Q4_Currently_Smoke+PHQ_7+PHQ_4+`Qb+height_inches`+Smokebefore+GAD_2+GAD_TOT|result_allgender,data = case_allgender)
+```
+
+draw a table of f vs m
+
+```{r}
+library(table1)
+
+case$Qa_height_feet<- as.numeric(case$Qa_height_feet)
+case$`Qb+height_inches`<- as.numeric(case$`Qb+height_inches`)
+case$`Factor(2)`<- as.numeric(case$`Factor(2)`)
+case$`Factor(3)`<- as.numeric(case$`Factor(3)`)
+case$Abusef3<- as.numeric(case$Abusef3)
+
+table1(~Qa_height_feet+`Qb+height_inches`+NUM_CHILD+CHILDREN+Attack_Threaten+OBCP_MEDS+SITE+`Factor(2)`+Abusef3+`Factor(3)`|gender,data = case)
+```
+
+**Dunn's test**
+
+```{r}
+case_fill <- case_fill[cluster_assignment!=3,]
+cluster_assignment <- cluster_assignment[cluster_assignment!=3]
+```
+
+```{r}
+library(FSA)
+test_data <- data.frame(group = as.factor(cluster_assignment),value =case_fill$CD16_positive_monocyte)
+dunnTest(value ~ group,
+         data=test_data,
+         method="bonferroni")
+```
+
+```{r}
+test_data <- data.frame(group = as.factor(cluster_assignment),value =case_fill$CD8_positive_alpha_beta_T_cell)
+dunnTest(value ~ group,
+         data=test_data,
+         method="bonferroni")
+```
+
+```{r}
+test_data <- data.frame(group = as.factor(cluster_assignment),value =case_fill$macrophage_m0)
+dunnTest(value ~ group,
+         data=test_data,
+         method="bonferroni")
+```
+
+```{r}
+test_data <- data.frame(group = as.factor(cluster_assignment),value =case_fill$macrophage_m2)
+dunnTest(value ~ group,
+         data=test_data,
+         method="bonferroni")
+```
+
+```{r}
+test_data <- data.frame(group = as.factor(cluster_assignment),value =case_fill$naive_B_cell )
+dunnTest(value ~ group,
+         data=test_data,
+         method="bonferroni")
+```

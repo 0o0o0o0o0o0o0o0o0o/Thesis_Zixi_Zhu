@@ -1,0 +1,12 @@
+INFO [2024-02-02 22:37:47] $x
+INFO [2024-02-02 22:37:47] list(`Special MDD group` = group1_ids, Cluster2 = group2_ids)
+INFO [2024-02-02 22:37:47] 
+INFO [2024-02-02 22:37:47] $category.names
+INFO [2024-02-02 22:37:47] c("Special MDD group", "Cluster2")
+INFO [2024-02-02 22:37:47] 
+INFO [2024-02-02 22:37:47] $filename
+INFO [2024-02-02 22:37:47] NULL
+INFO [2024-02-02 22:37:47] 
+INFO [2024-02-02 22:37:47] $fill
+INFO [2024-02-02 22:37:47] c("#FF9999", "#9999FF")
+INFO [2024-02-02 22:37:47] 

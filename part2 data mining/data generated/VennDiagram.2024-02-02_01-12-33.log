@@ -1,0 +1,9 @@
+INFO [2024-02-02 01:12:33] $x
+INFO [2024-02-02 01:12:33] list(A = group1_ids, B = group2_ids)
+INFO [2024-02-02 01:12:33] 
+INFO [2024-02-02 01:12:33] $category.names
+INFO [2024-02-02 01:12:33] c("Category A", "Category B")
+INFO [2024-02-02 01:12:33] 
+INFO [2024-02-02 01:12:33] $filename
+INFO [2024-02-02 01:12:33] NULL
+INFO [2024-02-02 01:12:33] 

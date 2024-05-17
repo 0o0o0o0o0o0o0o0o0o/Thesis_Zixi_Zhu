@@ -1,0 +1,58 @@
+---
+title: "Pro-prepare"
+output: html_document
+date: '2024-01-13'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Pre_prepare before missing value imputation
+
+read data
+
+```{r}
+#remember to change the path
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+rm(list=ls())
+cutoff_dataset <- read.table("cutoff_dataset_final.txt",header=T,sep = "\t",row.names = NULL)
+```
+
+remove rows with missing data
+
+```{r}
+pro <- c()
+miss_num <- c()
+for (i in 1:nrow(cutoff_dataset))
+{
+  pro <- cutoff_dataset[i,]
+  pro <- c(t(pro))
+  miss_num <- c(miss_num,length(pro[is.na(pro)==T]))
+}
+cutoff_dataset_pre <- cutoff_dataset[miss_num==0,]
+```
+
+```{r}
+cutoff_dataset_pre <- as.data.frame(lapply(cutoff_dataset_pre, function(x) as.numeric(as.character(x))))
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+write.table(cutoff_dataset_pre,"cutoff_dataset_prepare.txt",row.names = F,col.names = T,quote = F,sep="\t")
+```
+
+see the vairables without missing
+
+```{r}
+num <- c()
+for (i in 1:ncol(cutoff_dataset))
+{
+  miss_num <- length(cutoff_dataset[[colnames(cutoff_dataset)[i]]][is.na(cutoff_dataset[[colnames(cutoff_dataset)[i]]])==T])
+num <- c(num,miss_num)
+}
+table(num==0)
+
+```
+
+## 

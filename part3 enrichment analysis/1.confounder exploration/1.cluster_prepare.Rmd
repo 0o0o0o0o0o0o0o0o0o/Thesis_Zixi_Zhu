@@ -1,0 +1,71 @@
+---
+title: "Untitled"
+output: html_document
+date: '2024-02-28'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# read data
+
+```{r warning=FALSE}
+#remember to chance the path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+#change to your own pathways
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+
+#read and merge three clinical data set
+
+library("readxl")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+data_impute <- read.table("dataset_output.txt",header=T,sep = "\t",row.names = NULL)
+data_impute <- as.data.frame(lapply(data_impute, function(x) round(x,digits = 4)))
+```
+
+```{r}
+case_index <- data.frame(id=case$cell_id,cluster=cluster_assignment)
+
+data_index <- data.frame(id=data$cell_id,cluster=rep(0,921),site=data$SITE,age=data_impute$Ppage_At_Interview,children=data_impute$Children,atebefore=data_impute$Atebefore,smokebefore=data_impute$Smokebefore, exercisebefore=data_impute$Exercisebefore,alcoholbefore= data_impute$Alcoholbefore, TimeBloodDraw=data_impute$Timebloodnumeric)
+
+data_index$cluster[data$gender=="M"] <-  rep(6,274)
+
+data_index$cluster[data_index$id%in%case_index$id] <- case_index$cluster
+
+
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+save(data_index, file = "cluster_index.RData")
+```

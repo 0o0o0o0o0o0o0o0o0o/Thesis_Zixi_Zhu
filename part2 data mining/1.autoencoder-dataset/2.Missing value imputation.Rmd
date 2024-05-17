@@ -1,0 +1,95 @@
+---
+title: "Missing Imputation"
+output: html_document
+date: '2024-01-11'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Missing Value Imputation
+
+Input data
+
+```{r}
+#remember to change the path
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+rm(list=ls())
+cutoff_dataset <- read.table("cutoff_dataset.txt",header=T,sep = "\t",row.names = NULL)
+cutoff_case <- read.table("cutoff_case.txt",header=T,sep = "\t",row.names = NULL,quote = "")
+```
+
+### descriptive variables
+
+whole dataset
+
+```{r}
+temp <- as.data.frame(lapply(cutoff_dataset, function(x) as.numeric(as.character(x))))
+
+des_whole <- c()
+per_missing <- c()
+for (i in 1:ncol(temp))
+{
+  num <- length(unique(temp[,i]))
+  if (num==1)
+  {
+    des_whole <- c(des_whole,colnames(temp)[i])
+  }
+  miss_num <- length(temp[[colnames(temp)[i]]][is.na(temp[[colnames(temp)[i]]])==T])
+  percent <- miss_num/921
+  per_missing <- c(per_missing,percent)
+}
+des_whole2 <- colnames(temp)[per_missing>0.2]
+```
+
+remain gender and SITE，remove TimeBloodDraw
+
+```{r}
+cutoff_dataset$gender <- ifelse(cutoff_dataset$gender=="F",0,1)
+cutoff_dataset$SITE <- ifelse(cutoff_dataset$SITE=="Columbia",0,1)
+remove_des <- c(des_whole[3:11],"TimeBloodDrawn")
+#remove 10 descriptive variables
+cutoff_dataset <- cutoff_dataset[,!colnames(cutoff_dataset)%in%remove_des]
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+write.table(cutoff_dataset,"cutoff_dataset_final.txt",row.names = F,col.names = T,quote = F,sep="\t")
+```
+
+case dataset
+
+```{r}
+temp <- as.data.frame(lapply(cutoff_case, function(x) as.numeric(as.character(x))))
+
+des_whole <- c()
+per_missing <- c()
+for (i in 1:ncol(temp))
+{
+  num <- length(unique(temp[,i]))
+  if (num==1)
+  {
+    des_whole <- c(des_whole,colnames(temp)[i])
+  }
+  miss_num <- length(temp[[colnames(temp)[i]]][is.na(temp[[colnames(temp)[i]]])==T])
+  percent <- miss_num/921
+  per_missing <- c(per_missing,percent)
+}
+des_whole2 <- colnames(temp)[per_missing>0.2]
+```
+
+remain gender and SITE too
+
+```{r}
+cutoff_case$gender <- ifelse(cutoff_case$gender=="F",0,1)
+cutoff_case$SITE <- ifelse(cutoff_case$SITE=="Columbia",0,1)
+remove_des <- c(des_whole[3:25],"LIFE_PSYCH_MED1","TimeBloodDrawn")
+#remove 25 descriptive variables
+cutoff_case <- cutoff_case[,!colnames(cutoff_case)%in%remove_des]
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+write.table(cutoff_case,"cutoff_case_final.txt",row.names = F,col.names = T,quote = F,sep="\t")
+```

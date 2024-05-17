@@ -1,0 +1,10 @@
+INFO [2024-02-15 05:55:23] $x
+INFO [2024-02-15 05:55:23] list(A = group1_ids, B = group2_ids)
+INFO [2024-02-15 05:55:23] 
+INFO [2024-02-15 05:55:23] $category.names
+INFO [2024-02-15 05:55:23] c("Special MDD group", "Cluster3")
+INFO [2024-02-15 05:55:23] 
+INFO [2024-02-15 05:55:23] $filename
+INFO [2024-02-15 05:55:23] NULL
+INFO [2024-02-15 05:55:23] 
+ERROR [2024-02-15 05:55:23] NAs in dataset

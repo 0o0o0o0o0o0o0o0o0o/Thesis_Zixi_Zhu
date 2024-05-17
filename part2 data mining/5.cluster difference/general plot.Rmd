@@ -1,0 +1,249 @@
+---
+title: "Untitled"
+output: html_document
+date: '2024-02-22'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#remember to change teh path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+#change to your own pathways
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+
+#read and merge three clinical data set
+
+library("readxl")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+```{r}
+set1_old <- make.names(colnames(data)[1:559])
+set2_old <- make.names(colnames(data)[560:767])
+set3_old <- make.names(colnames(data)[768:967])
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+save(set1_old,file = "set1.RData")
+save(set2_old,file = "set2.RData")
+save(set3_old,file = "set3.RData")
+```
+
+## General Plot
+
+read data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+rm(list=ls())
+case <- read.table("case_output.txt",header=T,sep = "\t",row.names = NULL)
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+```
+
+```{r}
+case <- case[cluster_assignment!=3,]
+cluster_assignment <- cluster_assignment[cluster_assignment!=3]
+```
+
+draw general plot
+
+set group index
+
+```{r}
+index1 <- which(cluster_assignment==1)
+index2 <- which(cluster_assignment==2)
+index4 <- which(cluster_assignment==4)
+index5 <- which(cluster_assignment==5)
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("set1.RData")
+load("set2.RData")
+load("set3.RData")
+```
+
+```{r}
+set1 <- which(colnames(case)%in%set1_old)
+set2 <- which(colnames(case)%in%set2_old)
+set3 <- which(colnames(case)%in%set3_old)
+```
+
+```{r}
+case_order <- case[c(index1,index2,index4,index5),c(set1,set2,set3)]
+case_order <- t(case_order)
+```
+
+```{r}
+group_annotation <- data.frame(Group = c(rep("c1", 238), rep("c2", 121),rep("c4", 71),rep("c5", 31)))
+rownames(group_annotation) <- colnames(case_order)
+```
+
+```{r}
+variable_annotation <- data.frame(Variable = c(rep("excel1", 187), rep("excel2", 196),rep("excel3", 116)))
+rownames(variable_annotation) <- rownames(case_order)
+```
+
+```{r}
+
+
+
+breaks <- seq(0, 1,by=0.002)
+
+color_gradient <- colorRampPalette(c("grey", "blue"))(500)
+library(pheatmap)
+pheatmap(case_order, 
+         cluster_rows=FALSE, 
+         cluster_cols=FALSE, 
+         display_numbers=FALSE, 
+         color=color_gradient,
+         annotation_legend = FALSE,
+         show_colnames = FALSE,
+         show_rownames = FALSE,
+         annotation_col = group_annotation,
+         annotation_row = variable_annotation,
+         breaks= breaks)
+```
+
+## UMAP Distribution Plot
+
+read encoder data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+library(umap)
+library(FactoMineR)
+library(factoextra)
+rm(list=ls())
+encode <- read.table("case_encode.txt",header=T,sep = "\t",row.names = NULL)
+round_encode <- as.data.frame(lapply(encode, function(x) round(x,digits = 4)))
+```
+
+umap
+
+```{r}
+data <- scale(round_encode)
+umap_results <- umap(data)
+```
+
+get coordinate
+
+```{r}
+umap_df <- as.data.frame(umap_results$layout)
+```
+
+get gender
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("gender.RData")
+gender <- as.factor(gender)
+```
+
+draw plot about gender distribution
+
+```{r}
+fviz_cluster(list(data=umap_df, cluster = gender),geom = c("point"))
+```
+
+get cluster
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+```
+
+draw plot about cluster distribution
+
+```{r}
+fviz_cluster(list(data=umap_df, cluster = cluster_assignment),geom = c("point"))
+```
+
+## General Plot 2
+
+read data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data") 
+rm(list=ls()) 
+case <- read.table("case_output.txt",header=T,sep = "\t",row.names = NULL) 
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data") 
+load("cluster_gender.RData")
+```
+
+```{r}
+case <- case[cluster_assignment!=3,] 
+cluster_assignment <- cluster_assignment[cluster_assignment!=3]
+```
+
+draw general plot
+
+set group index
+
+```{r}
+index1 <- which(cluster_assignment==1) 
+index2 <- which(cluster_assignment==2) 
+index4 <- which(cluster_assignment==4) 
+index5 <- which(cluster_assignment==5)
+```
+
+```{r}
+import_var <- c("gender","Qa_height_feet","Qb.height_inches","GAD_4","GAD_3","GAD_2","GAD_TOT","PHQ_7","PHQ_4","Smokebefore","Q4_Currently_Smoke")
+
+```
+
+```{r}
+case_order <- case[c(index1,index2,index4,index5),import_var] 
+case_order <- t(case_order)
+```
+
+```{r}
+group_annotation <- data.frame(Group = c(rep("c1", 238), rep("c2", 121),rep("c4", 71),rep("c5", 31))) 
+rownames(group_annotation) <- colnames(case_order)
+```
+
+```{r}
+breaks <- seq(0, 1,by=0.002)  
+color_gradient <- colorRampPalette(c("grey", "blue"))(500) 
+library(pheatmap) 
+pheatmap(case_order,           
+         cluster_rows=FALSE,           
+         cluster_cols=FALSE,           
+         display_numbers=FALSE,           
+         color=color_gradient,          
+         annotation_legend = FALSE,          
+         show_colnames = FALSE,          
+         show_rownames = TRUE,          
+         annotation_col = group_annotation,          
+         breaks= breaks)
+```
+
+## 

@@ -1,0 +1,77 @@
+---
+title: "Read imputation"
+output: html_document
+date: '2024-01-17'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read Imputation
+
+Read whole dataset imputation
+
+```{r}
+#remember change the path
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+rm(list=ls())
+dataset <- read.table("dataset_output.txt",header=T,sep = "\t",row.names = NULL)
+```
+
+round to 4 digits
+
+```{r}
+round_dataset <- as.data.frame(lapply(dataset, function(x) round(x,digits = 4)))
+```
+
+get a case imputation
+
+```{r}
+case_imputation <- round_dataset[round_dataset$case_control_status==1,]
+```
+
+read case final
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+cutoff_case <- read.table("cutoff_case_final.txt",header=T,sep = "\t",row.names = NULL)
+```
+
+get additional variables
+
+```{r}
+add <- colnames(cutoff_case)[!colnames(cutoff_case)%in%colnames(case_imputation)]
+im_va <- colnames(case_imputation)[colnames(case_imputation)%in%colnames(cutoff_case)]
+#428vs499, 80difference
+```
+
+creat a mixed dataset
+
+```{r}
+case_mix <- cbind(case_imputation[,im_va],cutoff_case[,add])
+```
+
+remove rows with missing data
+
+```{r}
+pro <- c()
+miss_num <- c()
+for (i in 1:nrow(case_mix))
+{
+  pro <- case_mix[i,]
+  pro <- c(t(pro))
+  miss_num <- c(miss_num,length(pro[is.na(pro)==T]))
+}
+cutoff_case_pre <- case_mix[miss_num==0,]
+```
+
+```{r}
+cutoff_case_pre <- as.data.frame(lapply(cutoff_case_pre, function(x) as.numeric(as.character(x))))
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+write.table(cutoff_case_pre,"cutoff_case_prepare.txt",row.names = F,col.names = T,quote = F,sep="\t")
+write.table(case_mix,"cutoff_case_mix.txt",row.names = F,col.names = T,quote = F,sep="\t")
+```

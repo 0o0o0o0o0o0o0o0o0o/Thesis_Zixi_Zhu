@@ -1,0 +1,370 @@
+---
+title: "Missing Data"
+output: html_document
+date: '2024-01-10'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Missing Value Exploration
+
+### Input interview dataset
+
+```{r warning=FALSE}
+#remember to change to file path
+rm(list=ls())
+library(FactoMineR)
+library(factoextra)
+library(rvest)
+library(tidyverse)
+library(readxl)
+setwd("D:\\Thesis\\sample\\dp-s88-phen")
+set1 <- read_excel("DepressionGenesNetworks_AllSCIDS_distribution.xlsx", sheet = "DATA", col_names = T)
+set2 <- read_excel("DepressionGenesNetworks_case_control_phenotype_distribution.xlsx", sheet = "Data", col_names = T)
+set3 <- read_excel("DepressionGenesNetworks_ScreenData_distribution.xlsx", sheet = "NIH_Depression_Hopkins_18NOV10", col_names = T)
+colnames(set2)[3] <- "cell_id"
+#remove replicate variables in  set1 and set2
+set2_reduced <- set2[,!colnames(set2) %in% colnames(set1)[colnames(set1) != "cell_id"]]
+data <- merge(set1,set2_reduced,by="cell_id")
+#remove replicate variables in  set2 and set3
+set3_reduced <- set3[,!colnames(set3) %in% colnames(data)[colnames(data) != "cell_id"]]
+data <- merge(data,set3_reduced,by="cell_id")
+
+data <- data[data$cell_id!="LD0053",]
+
+control <- data[data$case_control_status==1,]
+case <- data[data$case_control_status==2,]
+```
+
+#### Interview Dataset Data Clean
+
+```{r warning=FALSE}
+test <- data
+
+#Divide variables into variables containing only a single value, category vatiables and numeric variables by number of unique value
+category <- c()
+numeric <- c()
+drop <- c()
+for (i in 1:ncol(test))
+{
+  num <- length(unique(test[,i]))
+  if (num==1)
+  {
+    drop <- c(drop,colnames(test)[i])
+  }
+  else if (num<10)               #category
+  {
+    category <- c(category,colnames(test)[i])
+    
+  }
+  else               #numeric
+  {
+    numeric <- c(numeric,colnames(test)[i])
+  }
+}
+
+#remove variables containing only a single value
+test <- test[,!colnames(test) %in% drop]
+#place category variables and numeric variables in order
+order <- c(category,numeric)
+test <- test[,order]
+
+
+
+```
+
+#### Explore Missing Value in Case
+
+```{r}
+case_clean <- test[test$case_control_status==2,]
+
+per_missing <- c()
+percent <- c()
+for (i in 1:ncol(case_clean))
+{
+  miss_num <- length(case_clean[[colnames(case_clean)[i]]][is.na(case_clean[[colnames(case_clean)[i]]])==T])
+  percent <- miss_num/462
+  per_missing <- c(per_missing,percent)
+}
+
+```
+
+```{r}
+library(ggplot2)
+library(scales)
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.05) +
+  ggtitle("Missing Pattern of Variables in case group") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in case group") +
+  ylab("Percent") +
+  geom_vline(xintercept = 0.2, color = "red", linetype = "dashed")+
+  annotate("text", x = 0.17, y = 0.01, label = "20%", color = "red")
+```
+
+#### Explore Missing Value in Control
+
+```{r}
+control_clean <- test[test$case_control_status==1,]
+
+per_missing <- c()
+percent <- c()
+for (i in 1:ncol(control_clean))
+{
+  miss_num <- length(control_clean[[colnames(control_clean)[i]]][is.na(control_clean[[colnames(control_clean)[i]]])==T])
+  percent <- miss_num/459
+  per_missing <- c(per_missing,percent)
+}
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.05) +
+  ggtitle("Missing Pattern of Variables in control group") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in control group") +
+  ylab("Percent") +
+  geom_vline(xintercept = 0.2, color = "red", linetype = "dashed")+
+  annotate("text", x = 0.17, y = 0.01, label = "20%", color = "red")
+```
+
+#### Explore Missing Patterns in Sample
+
+```{r}
+#case
+case_clean <- test[test$case_control_status==2,]
+
+per_missing <- c()
+percent <- c()
+pro <- c()
+for (i in 1:nrow(case_clean))
+{
+  pro <- case_clean[i,]
+  pro <- c(t(pro))
+  miss_num <- length(pro[is.na(pro)==T])
+  percent <- miss_num/881
+  per_missing <- c(per_missing,percent)
+}
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.01) +
+  ggtitle("Missing Pattern of Samples") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in case") +
+  ylab("Percent")
+```
+
+```{r}
+#control
+control_clean <- test[test$case_control_status==1,]
+
+per_missing <- c()
+percent <- c()
+pro <- c()
+for (i in 1:nrow(control_clean))
+{
+  pro <- control_clean[i,]
+  pro <- c(t(pro))
+  miss_num <- length(pro[is.na(pro)==T])
+  percent <- miss_num/881
+  per_missing <- c(per_missing,percent)
+}
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.01) +
+  ggtitle("Missing Pattern of Samples") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in control") +
+  ylab("Percent")
+```
+
+```{r}
+#male
+male_clean <- test[test$gender=="M",]
+
+per_missing <- c()
+percent <- c()
+pro <- c()
+for (i in 1:nrow(male_clean))
+{
+  pro <- male_clean[i,]
+  pro <- c(t(pro))
+  miss_num <- length(pro[is.na(pro)==T])
+  percent <- miss_num/881
+  per_missing <- c(per_missing,percent)
+}
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.01) +
+  ggtitle("Missing Pattern of Samples") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in male") +
+  ylab("Percent")
+```
+
+```{r}
+#female
+female_clean <- test[test$gender=="F",]
+
+per_missing <- c()
+percent <- c()
+pro <- c()
+for (i in 1:nrow(female_clean))
+{
+  pro <- female_clean[i,]
+  pro <- c(t(pro))
+  miss_num <- length(pro[is.na(pro)==T])
+  percent <- miss_num/881
+  per_missing <- c(per_missing,percent)
+}
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.01) +
+  ggtitle("Missing Pattern of Samples") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in female") +
+  ylab("Percent")
+```
+
+#### Conduct Cutoff to variables with missing value \> 20%
+
+```{r}
+case_clean <- test[test$case_control_status==2,]
+
+per_missing <- c()
+percent <- c()
+for (i in 1:ncol(case_clean))
+{
+  miss_num <- length(case_clean[[colnames(case_clean)[i]]][is.na(case_clean[[colnames(case_clean)[i]]])==T])
+  percent <- miss_num/462
+  per_missing <- c(per_missing,percent)
+}
+
+clean_category <- order[per_missing<0.2]
+```
+
+review variables missing pattern in control group
+
+```{r}
+control_clean <- test[test$case_control_status==1,clean_category]
+
+per_missing <- c()
+percent <- c()
+for (i in 1:ncol(control_clean))
+{
+  miss_num <- length(control_clean[[colnames(control_clean)[i]]][is.na(control_clean[[colnames(control_clean)[i]]])==T])
+  percent <- miss_num/459
+  per_missing <- c(per_missing,percent)
+}
+
+manual <- clean_category[per_missing>0.2]
+```
+
+```{r}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.05) +
+  ggtitle("Missing Pattern of Variables") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in control group") +
+  ylab("Percent") +
+  geom_vline(xintercept = 0.2, color = "red", linetype = "dashed")+
+  annotate("text", x = 0.17, y = 0.01, label = "20%", color = "red")
+```
+
+explore those special variables
+
+```{r}
+case_clean <- test[test$case_control_status==2,manual]
+
+per_missing <- c()
+percent <- c()
+uni_num <- c()
+for (i in 1:ncol(case_clean))
+{
+  miss_num <- length(case_clean[[colnames(case_clean)[i]]][is.na(case_clean[[colnames(case_clean)[i]]])==T])
+  percent <- miss_num/462
+  per_missing <- c(per_missing,percent)
+  
+  uni_num <- c(uni_num,length(unique(case_clean[,i])))
+}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.01) +
+  ggtitle("Missing Pattern of Variables") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in case group") +
+  ylab("Percent")
+```
+
+```{r}
+control_clean <- test[test$case_control_status==1,manual]
+
+per_missing <- c()
+percent <- c()
+for (i in 1:ncol(control_clean))
+{
+  miss_num <- length(control_clean[[colnames(control_clean)[i]]][is.na(control_clean[[colnames(control_clean)[i]]])==T])
+  percent <- miss_num/459
+  per_missing <- c(per_missing,percent)
+}
+per_missing <- as.data.frame(per_missing)
+ggplot( data=per_missing, aes(x=per_missing)) + 
+  geom_histogram(aes(y = ..count../sum(..count..)),fill="skyblue", alpha=0.5,binwidth = 0.05) +
+  ggtitle("Missing Pattern of Variables") +
+  theme_minimal()+
+  scale_y_continuous(labels = scales::percent_format()) + 
+  scale_x_continuous(labels = scales::percent_format()) +
+  xlab("missing percentage in control group") +
+  ylab("Percent")
+```
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration")
+write.table(manual,"manual.txt",row.names = F,col.names = F,quote = F)
+```
+
+Output Cleaned DataSet
+
+```{r}
+general_clean <- clean_category[!clean_category %in% manual]
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+cutoff_dataset <- data[,general_clean]
+colnames(cutoff_dataset)[436] <- "CELL LINE"
+cutoff_case <- case[,clean_category]
+colnames(cutoff_case)[522] <- "CELL LINE"
+write.table(cutoff_dataset,"cutoff_dataset.txt",row.names = F,col.names = T,quote = F,sep="\t")
+write.table(cutoff_case,"cutoff_case.txt",row.names = F,col.names = T,quote = F,sep="\t")
+```

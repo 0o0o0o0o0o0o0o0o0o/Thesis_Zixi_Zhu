@@ -1,0 +1,149 @@
+---
+title: "4.Permutation Importance"
+output: html_document
+date: '2024-01-23'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Permutation Importance
+
+input case dataset
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\variables exploration\\data")
+rm(list=ls())
+case <- read.table("case_output.txt",header=T,sep = "\t",row.names = NULL)
+round_case <- as.data.frame(lapply(case, function(x) round(x,digits = 4)))
+```
+
+read cluster data
+
+```{r}
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+load("cluster_gender.RData")
+```
+
+keep cluster 1 and 2
+
+```{r}
+round_case <- round_case[cluster_assignment==1|cluster_assignment==2,]
+```
+
+**see variable type**
+
+```{r}
+#14 single, 234 binary, 178 category, 73 numeric
+drop_new <- c()
+bi <- c()
+category <- c()
+numeric <- c()
+unique <- c()
+for (i in 1:ncol(round_case))
+{
+  num <- length(unique(round_case[,i]))
+  unique <- c(unique,num)
+  if (num==1)
+  {
+    drop_new <- c(drop_new,colnames(round_case)[i])
+  }
+  else if (num==2)               #bi
+  {
+    bi <- c(bi,colnames(round_case)[i])
+  }
+  else if (num<10)               #category
+  {
+    category <- c(category,colnames(round_case)[i])
+  }
+  else               #num
+  {
+    numeric<- c(numeric,colnames(round_case)[i])
+  }
+}
+```
+
+```{r}
+round_case <- round_case[,!colnames(round_case) %in% drop_new]
+
+#place category variables and numeric variables in order
+order <- c(bi,category,numeric)
+round_case <- round_case[,order]
+```
+
+#### Multicollinearity(category+numeric variables)
+
+```{r}
+#total 251 variables
+data_n <- round_case[,numeric]
+data_cate <- round_case[,category]
+data_n <- cbind(data_cate,data_n)
+spearman_correlation <- cor(data_n, method = "spearman")
+distance_matrix <- as.dist(1 - abs(spearman_correlation))
+hc <- hclust(distance_matrix)
+plot(hc,labels=F)
+groups <- cutree(hc, h = 0.3)
+#table(groups)
+#divide into 157 groups
+va_part1 <- c()
+for (i in 1:157)
+{
+  va_part1 <- c(va_part1,names(groups[groups==i][1]))
+}
+```
+
+#### Multicollinearity(binary variables)
+
+```{r}
+phi_cor <- function(data)
+{
+  library(psych)
+  length= ncol(data)
+  empty_matrix <- matrix(ncol = length, nrow = length)
+  cor_frame <- data.frame(empty_matrix)
+  colnames(cor_frame) <- colnames(data)
+  rownames(cor_frame) <- colnames(data)
+  for (i in 1:length)
+  {
+    for (j in i:length)
+    {
+      cor <- phi(table(data[,i],data[,j]))
+      cor_frame[i,j]=cor
+      cor_frame[j,i]=cor
+    }
+  }
+  return(cor_frame)
+}
+```
+
+```{r}
+#total of 234 variables
+library(misty)
+data_b <- round_case[,bi]
+phi_correlation <- phi_cor(data_b)
+distance_matrix <- as.dist(1 - abs(phi_correlation))
+hc <- hclust(distance_matrix)
+plot(hc,labels=F)
+groups <- cutree(hc, h = 0.3)
+#table(groups)
+#180 variables remain
+va_part2 <- c()
+for (i in 1:180)
+{
+  va_part2 <- c(va_part2,names(groups[groups==i][1]))
+}
+```
+
+#### Get a new case dataset without Multicollinearity
+
+```{r}
+cluster_assignment_sub <- cluster_assignment[cluster_assignment==1|cluster_assignment==2]
+```
+
+```{r}
+new_case <- round_case[,c(va_part1,va_part2)]
+new_case1 <- cbind(cluster_assignment_sub,new_case)
+setwd("D:\\Thesis\\WORKSPACE2024\\Hierarchical Clustering\\data")
+write.table(new_case1,file = "data_no_multicol_female.txt",quote = F,row.names = T,sep="\t")
+```

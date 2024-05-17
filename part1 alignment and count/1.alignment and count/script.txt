@@ -1,0 +1,204 @@
+#This shell script should be run in HPC
+#The aim of script is to conduct alignment and count for all the fastq files
+#location of data in HPC: /panfs/compbio/users/zzhu244/
+#original fastq data: /panfs/compbio/users/sshar28/humanMDD_2012_wholeBloodRNAseq/Volumes/
+#reference genomics files: /projects/compbio/users/sshar28/refData/ucsc/hg38/hg38.refGene.gtf
+
+# Get the first .fastq file in the original path
+# Create a soft link with the same name as the variable
+while read -r filename; do
+    first_file=$(ls "/panfs/compbio/users/sshar28/humanMDD_2012_wholeBloodRNAseq/Volumes/dbGAP1/${filename}"/*.fastq | head -n 1)
+    ln -s "$first_file" "./${filename}.fastq"
+done < /home/zzhu244/thesis/small_sample_test/GAP1.txt
+
+while read -r filename; do
+    first_file=$(ls "/panfs/compbio/users/sshar28/humanMDD_2012_wholeBloodRNAseq/Volumes/dbGAP2/${filename}"/*.fastq | head -n 1)
+    ln -s "$first_file" "./${filename}.fastq"
+done < /home/zzhu244/thesis/small_sample_test/GAP2.txt
+
+while read -r filename; do
+    first_file=$(ls "/panfs/compbio/users/sshar28/humanMDD_2012_wholeBloodRNAseq/Volumes/dbGAP3/${filename}"/*.fastq | head -n 1)
+    ln -s "$first_file" "./${filename}.fastq"
+done < /home/zzhu244/thesis/small_sample_test/GAP3.txt
+
+while read -r filename; do
+    first_file=$(ls "/panfs/compbio/users/sshar28/humanMDD_2012_wholeBloodRNAseq/Volumes/dbGAP4/${filename}"/*.fastq | head -n 1)
+    ln -s "$first_file" "./${filename}.fastq"
+done < /home/zzhu244/thesis/small_sample_test/GAP4.txt
+
+
+
+################GAP1     
+#run the files in GAP1 folder
+
+sed -i 's/\r//' alignment.sh
+sbatch --partition=week-long-cpu alignment.sh
+
+
+#continue processing remaining fastq files
+
+
+sed -i 's/\r//' GAP1_remain.txt
+sed -i 's/\r//' alignment_c.sh
+sbatch --partition=month-long-cpu alignment_c.sh
+
+
+##################################GAP2
+#run the files in GAP2 folder
+sed -i 's/\r//' alignment.sh
+sbatch --partition=week-long-cpu alignment.sh
+
+
+sed -i 's/\r//' GAP2_remain.txt
+sed -i 's/\r//' alignment_c.sh
+sbatch --partition=month-long-cpu alignment_c.sh
+
+#########################################GAP3
+#run the files in GAP3 folder
+sed -i 's/\r//' alignment.sh
+sbatch --partition=week-long-cpu alignment.sh
+
+sed -i 's/\r//' GAP3_remain.txt
+sed -i 's/\r//' alignment_c.sh
+sbatch --partition=month-long-cpu alignment_c.sh
+
+
+######################################GAP4
+#run the files in GAP4 folder
+sed -i 's/\r//' alignment.sh
+sbatch --partition=week-long-cpu alignment.sh
+
+sed -i 's/\r//' GAP4_remain.txt
+sed -i 's/\r//' alignment_c.sh
+sbatch --partition=month-long-cpu alignment_c.sh
+
+
+
+
+
+
+
+
+
+
+#Check for files that failed to run in GAP2
+
+# reoprt files that failed to run in GAP2
+while read -r filename; do
+	if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP2/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "Sample failed: $filename"
+    fi
+done < GAP2_remain.txt
+
+#record files that failed to run in GAP2
+while read -r filename; do
+    if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP2/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP2_remain.txt > fail_sample.txt
+
+
+###################Check for files that failed to run in GAP1
+
+
+
+while read -r filename; do
+	if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP1_remain.txt
+
+
+while read -r filename; do
+    if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP1_remain.txt > fail_sample.txt
+
+
+
+###################Check for files that failed to run in GAP3
+
+
+
+while read -r filename; do
+	if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP3/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP3_remain.txt
+
+
+while read -r filename; do
+    if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP3/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP3_remain.txt > fail_sample.txt
+
+
+###################Check for files that failed to run in GAP4
+
+
+
+while read -r filename; do
+	if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP4/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP4_remain.txt
+
+
+while read -r filename; do
+    if [ ! -f "/panfs/compbio/users/zzhu244/volumes/GAP4/qc_output/outcome/${filename}ReadsPerGene.out.tab" ]; then
+        echo "$filename"
+    fi
+done < GAP4_remain.txt > fail_sample.txt
+
+
+
+########################rerun failed files in GAP2
+
+
+sed -i 's/\r//' rerun.sh
+sbatch --partition=week-long-cpu rerun.sh
+
+########################rerun failed files in GAP3
+
+
+sed -i 's/\r//' rerun.sh
+sbatch --partition=week-long-cpu rerun.sh
+
+
+########################rerun failed files in GAP4
+
+sed -i 's/\r//' rerun.sh
+sbatch --partition=week-long-cpu rerun.sh
+
+
+
+
+################check LD0049 and LD0053 in gap1
+# test.sh
+#! /usr/bin/sh
+
+fastp_output_dir="/panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/fix/test"
+mkdir -p $fastp_output_dir
+
+fastp -i /panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/LD0049.fastq -o "$fastp_output_dir/LD0049_clean.fastq"
+fastp -i /panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/LD0053.fastq -o "$fastp_output_dir/LD0053_clean.fastq"
+
+sbatch --partition=day-long-cpu test.sh
+
+
+################quality control LD0049 and LD0053
+#test1.sh
+#! /usr/bin/sh
+
+fastp_output_dir="/panfs/compbio/users/zzhu244/volumes/GAP1/qc_output/fix/test"
+mkdir -p $fastp_output_dir
+
+fastqc -t 10 -o "$fastp_output_dir" LD0049.fastq
+fastqc -t 10 -o "$fastp_output_dir" LD0053.fastq
+
+sbatch --partition=day-long-cpu test1.sh
+
+
+
